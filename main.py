@@ -10,8 +10,10 @@ from io import BytesIO
 import json
 import pandas as pd
 import storage
+import Neo4jStorage
+import email_send
 
-
+#TODO:把access_token改成你自己的
     # 获取发票正文内容
 def get_context(pic):
     print('正在获取图片正文内容！')
@@ -20,6 +22,9 @@ def get_context(pic):
         request_url ="https://aip.baidubce.com/rest/2.0/ocr/v1/vat_invoice?access_token="
             # 二进制方式打开图片文件
         img_file = pic
+        tmp = img_file.split('/')[2]
+        img_name = tmp.split('.')[0]
+        img_type = tmp.split('.')[1]
         im = Image.open(img_file)
         (x, y) = im.size
 
@@ -37,7 +42,8 @@ def get_context(pic):
             #     img = urllib.parse.quote_plus(img)
         params = {"image": img}
 
-            # 这里需要替换成自己的access_token
+
+            # TODO:这里需要替换成自己的access_token
         access_token = '24.28996d3cf44704a4c04759df066806ed.2592000.1683466812.282335-32066502'
             # access_token = '24.18919bfddfe2e9eaafa5adafbc009fdd.2592000.1652961349.282335-24520345'
         request_url = request_url+ access_token
@@ -53,6 +59,8 @@ def get_context(pic):
             data['SellerName'] = json1['words_result']['SellerName']
             data['AmountInFiguers'] = json1['words_result']['AmountInFiguers']
             # print(data['AmountInFiguers'])
+            data['InvoiceName'] = img_name
+            data['InvoiceImgType'] = img_type
 
         print('正文内容获取成功！')
         return data
@@ -122,16 +130,24 @@ def data_save(datas):
 def main():
     print('开始执行！！！')
 
+
     # 这是你发票的存放地址，自行更改
     path = 'aistudio-发票数据集/test'
-
+    # 返回每张图片的路径
     Pics = pics(path)
+    # ocr识别发票信息
     Datas = datas(Pics)
-    #data_save(Datas)
+    #将发票信息存到mongodb里
     storage.storage_invoice_approval(Datas)
-    #content = self.get_context('aistudio-发票数据集/b/b0.jpg')
-    #print(content)
+    # 将原始图片存到mongodb里
     storage.storage_pics(path)
+    # 将发票信息和统计信息存入excel里
+    storage.mongodb_to_excel()
+    # 将发票信息存入neo4j里
+    Neo4jStorage.invoice_create_relationship()
+    # 将excel表通过邮件发送
+    email_send.send_mail()
+
     print('执行结束！')
 
 if __name__ == '__main__':

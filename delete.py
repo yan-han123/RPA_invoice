@@ -1,7 +1,7 @@
 # --* coding=utf-8 *--
 import base64
 from io import StringIO, BytesIO
-
+import Neo4jStorage
 import pymongo
 from pymongo import MongoClient
 import gridfs
@@ -18,6 +18,13 @@ def delete():
     myset1.drop()
     myset2 = db.invoice_approval
     myset2.drop()
+    # neo4j清空
+    Neo4jStorage.delete()
+    # excel清空
+    if os.path.exists("testb.xlsx"):
+        os.remove("testb.xlsx")
+
+
 
 if __name__ == '__main__':
     delete()
